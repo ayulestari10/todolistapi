@@ -1,0 +1,214 @@
+<?php 
+
+class M_Tracking extends MY_Model 
+{
+	public function __construct()
+	{
+		parent::__construct();
+		$this->data['table_name']	= LEGACY . '.POD_TRACKING A';
+		$this->data['primary_key']	= 'ID_TRACKING';
+	}
+
+	public function getID(){
+        $this->db->select('GEN_NUMBER');
+        $GEN_FISCAL_YEAR = date('y');
+        $this->db->where(array('GEN_APPS' => API_ID, 'GEN_SEQ' => '1', 'GEN_FISCAL_YEAR' => $GEN_FISCAL_YEAR));
+        $this->db->from(LEGACY.'.GEN_LOOKUP_NUMB');
+        $query = $this->db->get();
+        // var_dump($this->db->last_query());exit;
+
+        if ($query->num_rows() > 0) {
+            $total = $query->row_array();
+            return $total['GEN_NUMBER'];
+        } else {
+            return FALSE;
+        }
+    }
+
+    public function updateID($GEN_NUMBER){
+        $GEN_NUMBER++;
+        $GEN_FISCAL_YEAR = date('y');
+        $this->db->where(array('GEN_APPS' => API_ID, 'GEN_SEQ' => '1', 'GEN_FISCAL_YEAR' => $GEN_FISCAL_YEAR));
+        $this->db->update(LEGACY.'.GEN_LOOKUP_NUMB', array('GEN_NUMBER' => $GEN_NUMBER));
+        
+        return $this->db->affected_rows();
+    }
+
+	public function insertTracking($data){
+        $this->db->trans_begin();
+        
+        $data['ID_TRACKING'] = $this->getID();
+        // var_dump($data['ID_TRACKING']);exit;
+
+        if($data['ID_TRACKING'] == FALSE){
+            return "Gagal Mengambil Sequence.";
+        }
+        $this->db->insert(LEGACY.'.POD_TRACKING', $data);
+
+        if($this->db->affected_rows() <= 0){
+            return "Gagal Menyimpan Tracking";
+        }
+
+        $IDstats = $this->updateID($data['ID_TRACKING']);
+        if($IDstats == 0){
+            return "Gagal Mengupdate Sequence.";
+        }
+
+        $this->db->trans_complete();
+
+        if ($this->db->trans_status() === FALSE){
+            # Something went wrong.
+            $this->db->trans_rollback();
+            return FALSE;
+        } 
+        else{
+            # Everything is Perfect. 
+            # Committing data to the database.
+            $this->db->trans_commit();
+            return $data['ID_TRACKING'];
+        }
+    }
+
+    public function updateTracking($data, $id){
+        $this->db->where('ID_TRACKING', $id);
+        return $this->db->update(LEGACY.'.POD_TRACKING', $data);
+    }
+
+
+
+    function getDetailDOTracking($cond){
+        $sql = "
+                SELECT DISTINCT
+                A.*, 
+                B.*,
+                C.CUST_NUMBER AS KODE_DISTRIBUTOR, C.NAME1 AS NAMA_DISTRIBUTOR,
+                COALESCE(C.ADDRESS2, C.ADDRESS1) AS ALAMAT_DISTRIBUTOR,
+                D.*
+                FROM ". $this->data['table_name'] . "
+                LEFT JOIN ". LEGACY_MDM .".V_ALL_CUSTOMER B ON A.KODE_TOKO = B.CUST_NUMBER
+                LEFT JOIN ". LEGACY_MDM .".V_ALL_CUSTOMER C ON A.KODE_DISTRIBUTOR = C.CUST_NUMBER
+                LEFT JOIN ". LEGACY_MDM .".VIEW_CF_SAP_DO_SO D ON D.DO_H_VBELN = A.NOMOR_DO
+                WHERE 1 = 1 
+        ";
+
+        if(isset($cond['CUST_GROUP']) && isNotNullAndEmpty($cond['CUST_GROUP'])){
+            $sql .= " AND B.CUST_GROUP = '". $cond['CUST_GROUP'] . "'";
+        }
+
+        if(isset($cond['KODE_DISTRIBUTOR']) && isNotNullAndEmpty($cond['KODE_DISTRIBUTOR'])){
+            $sql .= " AND A.KODE_DISTRIBUTOR = '". $cond['KODE_DISTRIBUTOR'] . "'";
+        }
+
+        if(isset($cond['STATUS']) && isNotNullAndEmpty($cond['STATUS'])){ // Accepted/ Rejected
+            $sql .= " AND A.H_STATUS = '". $cond['STATUS'] . "'";
+        }
+
+        if(isset($cond['NOMOR_DO']) && isNotNullAndEmpty($cond['NOMOR_DO'])){
+            $sql .= " AND A.NOMOR_DO = '". $cond['NOMOR_DO'] . "'";
+        }
+
+        if(isset($cond['ID_TRACKING']) && isNotNullAndEmpty($cond['ID_TRACKING'])){
+            $sql .= " AND A.ID_TRACKING = '". $cond['ID_TRACKING'] . "'";
+        }
+
+
+        $sql .= " ORDER BY A.ID_TRACKING";
+
+        $res = $this->db->query($sql);
+        $res = $res->row_array();
+        
+        if(count($res) <= 0){
+            $res = null;
+        }
+
+        return $res;
+    }
+
+    function getAllToko($cond){
+        $sql = "
+                SELECT DISTINCT
+                A.KODE_TOKO, 
+                COALESCE(B.NAME1, B.NAME2) NAMA_TOKO
+                FROM ". $this->data['table_name'] . "
+                LEFT JOIN ". LEGACY_MDM .".V_ALL_CUSTOMER B ON A.KODE_TOKO = B.CUST_NUMBER
+                WHERE 1 = 1 
+        ";
+
+        if(isset($cond['CUST_GROUP']) && isNotNullAndEmpty($cond['CUST_GROUP'])){
+            $sql .= " AND B.CUST_GROUP = '". $cond['CUST_GROUP'] . "'";
+        }
+
+        if(isset($cond['KODE_DISTRIBUTOR']) && isNotNullAndEmpty($cond['KODE_DISTRIBUTOR'])){
+            $sql .= " AND A.KODE_DISTRIBUTOR = '". $cond['KODE_DISTRIBUTOR'] . "'";
+        }
+
+        if(isset($cond['NOMOR_DO']) && isNotNullAndEmpty($cond['NOMOR_DO'])){
+            $sql .= " AND A.NOMOR_DO = '". $cond['NOMOR_DO'] . "'";
+        }
+
+        if(isset($cond['ID_TRACKING']) && isNotNullAndEmpty($cond['ID_TRACKING'])){
+            $sql .= " AND A.ID_TRACKING = '". $cond['ID_TRACKING'] . "'";
+        }
+
+
+        $sql .= " ORDER BY A.KODE_TOKO ASC";
+
+        $res = $this->db->query($sql);
+        $res = $res->result_array();
+        
+        if(count($res) <= 0){
+            $res = null;
+        }
+
+        return $res;
+    }
+
+    public function getAllTracking($filter, $sort = null){
+        $where      = $this->generateWhereTable($filter);
+        $join       = $this->generateJoinTable();
+        $result     = null;
+        $distinct   = true;
+        $result     = parent::getAllData($this->data['table_name'], null, $where, $sort, $join, null, null, null, $distinct);
+
+        return $result;
+    }
+
+    private function generateJoinTable(){
+        $join[] = array(
+            "join_table"        => "(SELECT * FROM  ". LEGACY_MDM .".V_ALL_CUSTOMER) B", 
+            "join_on"           => "A.KODE_TOKO = B.CUST_NUMBER", 
+            "join_heading"      => "LEFT");
+
+        $join[] = array(
+            "join_table"        => "(SELECT * FROM  ". LEGACY_MDM .".VIEW_CF_SAP_DO_SO) C", 
+            "join_on"           => "C.DO_H_VBELN = A.NOMOR_DO", 
+            "join_heading"      => "LEFT");
+
+        return $join;
+    }
+
+    private function generateWhereTable($filter){
+        $where = null;
+
+        if(isset($filter["KODE_DISTRIBUTOR"]) && isNotNullAndEmpty($filter["KODE_DISTRIBUTOR"])){
+            $where[] = array("EQUAL", "A.KODE_DISTRIBUTOR", $filter["KODE_DISTRIBUTOR"]);  
+        }
+
+        if(isset($filter["KODE_TOKO"]) && isNotNullAndEmpty($filter["KODE_TOKO"]) && $filter["KODE_TOKO"] != 'null'){
+            $where[] = array("EQUAL", "A.KODE_TOKO", $filter["KODE_TOKO"]);  
+        }
+
+        if(isset($filter["TANGGAL"]) && isNotNullAndEmpty($filter["TANGGAL"]) && $filter["TANGGAL"] != 'null'){
+            $where[] = array("EQUAL", "A.CREATED_DATE", $filter["TANGGAL"]);  
+        }
+
+        if(isset($filter["NOMOR_DO"]) && isNotNullAndEmpty($filter["NOMOR_DO"]) && $filter["NOMOR_DO"] != 'null'){
+            $where[] = array("EQUAL", "A.NOMOR_DO", $filter["NOMOR_DO"]);  
+        }
+        
+        return $where;
+    }
+
+}
+
+?>

@@ -1,0 +1,13 @@
+<?php 
+
+class M_GenAccount extends MY_Model 
+{
+	public function __construct()
+	{
+		parent::__construct();
+		$this->data['table_name']	= 'PRODSAPLEGACY.GEN_ACCOUNT';
+		$this->data['primary_key']	= 'GEN_USER';
+	}
+}
+
+?>

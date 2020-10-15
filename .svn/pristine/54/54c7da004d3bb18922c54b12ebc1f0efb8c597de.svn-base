@@ -1,0 +1,144 @@
+<?php 
+
+class M_VALLCustomer extends MY_Model 
+{
+	public function __construct()
+	{
+		parent::__construct(); 
+		$this->data['table_name']	= LEGACY_MDM . '.V_ALL_CUSTOMER A';
+		$this->data['primary_key']	= 'CUST_NUMBER';
+	}
+
+	function getAllCustomer($cond){
+		$sql = "
+				SELECT 
+				A.*
+				FROM ". $this->data['table_name'] . "
+				WHERE 1 = 1 
+		";
+
+		if(isset($cond['CUST_GROUP']) && isNotNullAndEmpty($cond['CUST_GROUP'])){
+			$sql .= " AND A.CUST_GROUP = '". $cond['CUST_GROUP'] . "'";
+		}
+
+		if(isset($cond['CUST_NUMBER']) && isNotNullAndEmpty($cond['CUST_NUMBER'])){
+			$sql .= " AND A.CUST_NUMBER = '". $cond['CUST_NUMBER'] . "'";
+		}
+
+		if(isset($cond['LATITUDE']) && isNotNullAndEmpty($cond['LATITUDE'])){
+			$sql .= " AND A.LATITUDE = '". $cond['LATITUDE'] . "'";
+		}
+
+		if(isset($cond['LONGITUDE']) && isNotNullAndEmpty($cond['LONGITUDE'])){
+			$sql .= " AND A.LONGITUDE = '". $cond['LONGITUDE'] . "'";
+		} 
+
+		if(isset($cond['MANUAL']) && isNotNullAndEmpty($cond['MANUAL'])){
+			$sql .= " " . $cond['MANUAL'] . " ";
+		} 
+
+		$sql .= " ORDER BY A.CUST_NUMBER DESC";
+
+		$res = $this->db->query($sql);
+		$res = $res->result_array();
+		
+		if(count($res) <= 0){
+			$res = null;
+		}
+
+		return $res;
+	}
+
+	function getAllNomorDO($cond){
+		$sql = "
+				SELECT 
+				A.DO_H_VBELN NOMOR_DO 
+				FROM ". $this->data['table_name'] . "
+				LEFT JOIN ". LEGACY_MDM .".V_ALL_CUSTOMER B ON A.H_KUNAG = B.CUST_NUMBER
+				WHERE 1 = 1 
+		";
+
+		if(isset($cond['CUST_GROUP']) && isNotNullAndEmpty($cond['CUST_GROUP'])){
+			$sql .= " AND B.CUST_GROUP = '". $cond['CUST_GROUP'] . "'";
+		}
+
+		if(isset($cond['KODE_DISTRIBUTOR']) && isNotNullAndEmpty($cond['KODE_DISTRIBUTOR'])){
+			$sql .= " AND A.H_KUNAG = '". $cond['KODE_DISTRIBUTOR'] . "'";
+		}
+
+		if(isset($cond['JENIS_PENGIRIMAN']) && isNotNullAndEmpty($cond['JENIS_PENGIRIMAN'])){
+			$sql .= " AND A.DO_H_INCO1 = '". $cond['JENIS_PENGIRIMAN'] . "'";
+		}
+
+		if(isset($cond['STATUS']) && isNotNullAndEmpty($cond['STATUS'])){ // Accepted/ Rejected
+			$sql .= " AND A.H_STATUS = '". $cond['STATUS'] . "'";
+		}
+
+
+		$sql .= " ORDER BY A.DO_H_VBELN DESC";
+
+		$res = $this->db->query($sql);
+		$res = $res->result_array();
+		
+		if(count($res) > 0){
+			$data_akhir["clubs"] = [];
+			for($i = 0; $i < count($res); $i++){
+				$single_data['id'] 		= $res[$i]['NOMOR_DO'];
+				array_push($data_akhir["clubs"], $single_data);
+			}
+			$res = $data_akhir;
+		}
+		else{
+			$res = [];
+		}
+
+		return $res;
+	}
+
+	function getAllDOToko($cond){
+		$sql = "
+				SELECT 
+				A.DO_H_VBELN NOMOR_DO 
+				FROM ". $this->data['table_name'] . "
+				LEFT JOIN ". LEGACY_MDM .".V_ALL_CUSTOMER B ON A.H_KUNAG = B.CUST_NUMBER
+				WHERE 1 = 1 
+		";
+
+		if(isset($cond['CUST_GROUP']) && isNotNullAndEmpty($cond['CUST_GROUP'])){
+			$sql .= " AND B.CUST_GROUP = '". $cond['CUST_GROUP'] . "'";
+		}
+
+		if(isset($cond['KODE_TOKO']) && isNotNullAndEmpty($cond['KODE_TOKO'])){ // KODE TOKO
+			$sql .= " AND A.DO_H_KUNNR = '". $cond['KODE_TOKO'] . "'";
+		}
+
+		if(isset($cond['JENIS_PENGIRIMAN']) && isNotNullAndEmpty($cond['JENIS_PENGIRIMAN'])){
+			$sql .= " AND A.DO_H_INCO1 = '". $cond['JENIS_PENGIRIMAN'] . "'";
+		}
+
+		if(isset($cond['STATUS']) && isNotNullAndEmpty($cond['STATUS'])){ // Accepted/ Rejected
+			$sql .= " AND A.H_STATUS = '". $cond['STATUS'] . "'";
+		}
+
+		$sql .= " ORDER BY A.DO_H_VBELN DESC";
+
+		$res = $this->db->query($sql);
+		$res = $res->result_array();
+		
+		if(count($res) > 0){
+			$data_akhir["clubs"] = [];
+			for($i = 0; $i < count($res); $i++){
+				$single_data['id'] 		= $res[$i]['NOMOR_DO'];
+				array_push($data_akhir["clubs"], $single_data);
+			}
+			$res = $data_akhir;
+		}
+		else{
+			$res = [];
+		}
+
+		return $res;
+	}
+}
+
+?>

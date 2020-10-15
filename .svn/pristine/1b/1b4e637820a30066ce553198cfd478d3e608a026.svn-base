@@ -1,0 +1,79 @@
+<?php 
+require_once 'vendor/autoload.php';
+
+use DeviceDetector\DeviceDetector;
+use DeviceDetector\Parser\Device\DeviceParserAbstract;
+
+// OPTIONAL: Set version truncation to none, so full versions will be returned
+// By default only minor versions will be returned (e.g. X.Y)
+// for other options see VERSION_TRUNCATION_* constants in DeviceParserAbstract class
+DeviceParserAbstract::setVersionTruncation(DeviceParserAbstract::VERSION_TRUNCATION_NONE);
+
+require(APPPATH . 'libraries/Rest.php');
+
+class Error_logs extends Rest
+{
+	private $userAgent;
+
+	public function __construct()
+	{
+		parent::__construct();
+
+		$this->data = [
+			'status'	=> 'success',
+			'message'	=> 'Request success',
+			'metadata'	=> []
+		];
+
+		$datetime = explode(' ', date('Y-m-d H:i:s'));
+		$this->currentDate = $datetime[0];
+		$this->currentTime = $datetime[1];
+
+		$userAgent = $_SERVER['HTTP_USER_AGENT'];
+		$dd = new DeviceDetector($userAgent);
+		$dd->parse();
+		$this->userAgent = [
+			'CLIENT'		=> $dd->getClient(),
+			'OS'			=> $dd->getOs(),
+			'DEVICE'		=> $dd->getDeviceName(),
+			'BRAND'			=> $dd->getBrandName(),
+			'MODEL'			=> $dd->getModel(),
+			'IS_BOT'		=> $dd->isBot(),
+			'BOT'			=> $dd->getBot(),
+			'USER_AGENT'	=> $_SERVER['HTTP_USER_AGENT']
+		];
+	}
+
+	public function index_post()
+	{
+		$token = $this->check_token_post();
+		$this->load->library('ci_jwt');
+		$payload = $this->ci_jwt->decode($token);
+
+		$this->currentDate = str_replace('-', '', $this->currentDate);
+		$this->currentTime = str_replace(':', '', $this->currentTime);
+
+		$this->load->model('M_ErrorLogs');
+		$errorLog = [
+			'CREATED_DATE'	=> $this->currentDate,
+			'CREATED_TIME'	=> $this->currentTime,
+			'CREATED_BY'	=> $payload->GEN_USER,
+			'LOG'			=> $this->post('LOG'),
+			'ACTION'		=> $this->post('ACTION'),
+			'CODE'			=> $this->post('CODE'),
+			'USER_AGENT'	=> json_encode($this->userAgent['USER_AGENT']),
+			'CLIENT'		=> json_encode($this->userAgent['CLIENT']),
+			'OS'			=> json_encode($this->userAgent['OS']),
+			'DEVICE'		=> json_encode($this->userAgent['DEVICE']),
+			'BRAND'			=> json_encode($this->userAgent['BRAND']),
+			'MODEL'			=> json_encode($this->userAgent['MODEL']),
+			'IS_BOT'		=> ($this->userAgent['IS_BOT'] ? 1 : 0),
+			'BOT'			=> json_encode($this->userAgent['BOT'])
+		];
+		$this->M_ErrorLogs->insertOracle($errorLog, AN_OLGA_18_SEQ, AN_OLGA_18_DESC);
+
+		$this->data['error_log']	= $errorLog;
+		$this->data['token']		= $token;
+		$this->response($this->data);
+	}
+}
